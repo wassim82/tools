@@ -60,6 +60,7 @@ class pics
 		imagefill($this->pic, 0, 0, $w);
 
 		imagecopymerge($this->pic,$img_out,($l-$largeur)/2,($h-$hauteur)/2,0,0,$largeur,$hauteur,100);
+		return $this;
 	}
 	
 	function pic_get($dest = 'raw')
