@@ -1,0 +1,15 @@
+{
+  "name": "wassim82/tools",
+  "description": "PHP mad lib",
+  "type": "package",
+  "license": "MIT",
+  "author": "Wassim",
+  "require": {
+    "php": ">=5.4.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "madtec\\tools\\": "src/"
+    }
+  }
+}
