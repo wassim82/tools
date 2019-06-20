@@ -27,7 +27,7 @@ class pics
 		{
 			$this->img_in = imagecreatefrompng($pic);
 		}
-		
+
 		$this->img_in_size = array('0' => imagesx($this->img_in), '1' => imagesy($this->img_in)); // getimagesize($pic);
 		return $this;
 	}
@@ -77,13 +77,34 @@ class pics
 	{
 		$x = 0;
 		$y = 0;
+		
 		if($this->img_in_size[0] >= $w && $this->img_in_size[1] >= $h)
 		{
 			$x = ($this->img_in_size[0] - $w) / 2 ;
 			$y = ($this->img_in_size[1] - $h) / 2 ;
+			$this->pic = imagecrop($this->img_in, ['x' => $x, 'y' => $y, 'width' => $w, 'height' => $h]);
+		}
+		else if($this->img_in_size[0] < $w || $this->img_in_size[1] < $h)
+		{
+			$wc = $w / $this->img_in_size[0];
+			$hc = $h / $this->img_in_size[1];
+			
+			$corec = max($wc, $hc);
+			
+			$wc = ($w*$corec);
+			$hc = ($h*$corec);
+			
+			$img_out = imagecreatetruecolor($wc, $hc);
+			imagecopyresampled($img_out, $this->img_in, 0, 0, 0, 0, $wc, $hc, $this->img_in_size[0], $this->img_in_size[1]);
+						
+			$this->img_in_size = array('0' => imagesx($img_out), '1' => imagesy($img_out));
+			
+			$x = ($wc - $w) / 2 ;
+			$y = ($hc - $h) / 2 ;
+			$this->pic = imagecrop($img_out, ['x' => $x, 'y' => $y, 'width' => $w, 'height' => $h]);
 		}
 		
-		$this->pic = imagecrop($this->img_in, ['x' => $x, 'y' => $y, 'width' => $w, 'height' => $h]);
+		
 		return $this;
 	}
 	
