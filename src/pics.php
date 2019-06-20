@@ -5,32 +5,41 @@ namespace madtec\tools;
 class pics
 {
 	private $url;
+	private $img_in;
+	private $img_in_size;
 	private $pic;
+
 	
 	public function __construct()
     {
 
     }
 	
-	
-	function pic_resize($url,$l,$h)
+	function pic($pic)
 	{
-		$pic = $url;
-		$size_im = getimagesize($pic);
 		
 		$type_img = exif_imagetype($pic);
-
-
 		if($type_img==2)
 		{
-			$img_in = imagecreatefromjpeg($pic);
+			$this->img_in = imagecreatefromjpeg($pic);
 		}
 		elseif($type_img==3)
 		{
-			$img_in = imagecreatefrompng($pic);
-
+			$this->img_in = imagecreatefrompng($pic);
 		}
-
+		
+		$this->img_in_size = array('0' => imagesx($this->img_in), '1' => imagesy($this->img_in)); // getimagesize($pic);
+		return $this;
+	}
+	
+	
+	
+	
+	function pic_resize($l,$h)
+	{
+		
+		$size_im = $this->img_in_size;
+		
 		$pour = $size_im[0]/$l;
 		if(($size_im[1]/$h)>$pour)
 		{
@@ -52,7 +61,7 @@ class pics
 		$w = imagecolorallocate($img_out, 255, 255, 255);
 		imagefilledrectangle($img_out, 0, 0, imagesx($img_out), imagesy($img_out), $w);
 		
-		imagecopyresampled($img_out, $img_in, 0, 0, 0, 0, imagesx($img_out), imagesy($img_out), imagesx($img_in), imagesy($img_in));
+		imagecopyresampled($img_out, $this->img_in, 0, 0, 0, 0, imagesx($img_out), imagesy($img_out), imagesx($this->img_in), imagesy($this->img_in));
 
 		
 		$this->pic = imagecreatetruecolor($l, $h);
@@ -60,6 +69,21 @@ class pics
 		imagefill($this->pic, 0, 0, $w);
 
 		imagecopymerge($this->pic,$img_out,($l-$largeur)/2,($h-$hauteur)/2,0,0,$largeur,$hauteur,100);
+		return $this;
+	}
+	
+	
+	function pic_crop($w,$h)
+	{
+		$x = 0;
+		$y = 0;
+		if($this->img_in_size[0] >= $w && $this->img_in_size[1] >= $h)
+		{
+			$x = ($this->img_in_size[0] - $w) / 2 ;
+			$y = ($this->img_in_size[1] - $h) / 2 ;
+		}
+		
+		$this->pic = imagecrop($this->img_in, ['x' => $x, 'y' => $y, 'width' => $w, 'height' => $h]);
 		return $this;
 	}
 	
