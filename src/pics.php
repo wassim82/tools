@@ -91,13 +91,16 @@ class pics
 			
 			$corec = max($wc, $hc);
 			
-			$wc = ($w*$corec);
-			$hc = ($h*$corec);
+			$wc = ($this->img_in_size[0]*$corec);
+			$hc = ($this->img_in_size[1]*$corec);
+			//print $hc;
 			
 			$img_out = imagecreatetruecolor($wc, $hc);
 			imagecopyresampled($img_out, $this->img_in, 0, 0, 0, 0, $wc, $hc, $this->img_in_size[0], $this->img_in_size[1]);
-						
-			$this->img_in_size = array('0' => imagesx($img_out), '1' => imagesy($img_out));
+			
+			$this->pic = $img_out;
+			
+			//$this->img_in_size = array('0' => imagesx($img_out), '1' => imagesy($img_out));
 			
 			$x = ($wc - $w) / 2 ;
 			$y = ($hc - $h) / 2 ;
