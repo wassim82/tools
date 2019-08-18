@@ -78,13 +78,19 @@ class pics
 		$x = 0;
 		$y = 0;
 		
-		if($this->img_in_size[0] >= $w && $this->img_in_size[1] >= $h)
+		/*if($this->img_in_size[0] >= $w && $this->img_in_size[1] >= $h)
 		{
+			$wc = $w / $this->img_in_size[0];
+			$hc = $h / $this->img_in_size[1];
+			$corec = min($wc, $hc);
+			
+			
+			
 			$x = ($this->img_in_size[0] - $w) / 2 ;
 			$y = ($this->img_in_size[1] - $h) / 2 ;
 			$this->pic = imagecrop($this->img_in, ['x' => $x, 'y' => $y, 'width' => $w, 'height' => $h]);
 		}
-		else if($this->img_in_size[0] < $w || $this->img_in_size[1] < $h)
+		*///else if($this->img_in_size[0] < $w || $this->img_in_size[1] < $h)
 		{
 			$wc = $w / $this->img_in_size[0];
 			$hc = $h / $this->img_in_size[1];
