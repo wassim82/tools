@@ -1,7 +1,7 @@
 <?php
 namespace madtec\tools;
 
-class common
+class mdt
 {
 	private $url;
 	private $img_in;
