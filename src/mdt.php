@@ -46,11 +46,21 @@ class mdt
 		return $time;
 		
 	}
+	
+	function dateustime($date)
+	{
+		$date = str_replace("-", "/", $date);	
+		$date = explode("/", $date);
+
+		$time = mktime(0,0,0,$date[1],$date[2],$date[0]);
+		return $time;
+		
+	}
 
 
 	function datefulltime($date)
 	{
-		$dateTime = new DateTime($date);
+		$dateTime = new \DateTime($date);
 		return $dateTime->getTimestamp();
 	}
 	
