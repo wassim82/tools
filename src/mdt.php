@@ -64,6 +64,16 @@ class mdt
 		return $dateTime->getTimestamp();
 	}
 	
+	function datetimetime($date)
+	{
+		$date = str_replace("-", "/", $date);
+		$date = str_replace(" ", "/", $date);
+		$date = str_replace(":", "/", $date);
+		$date = explode("/", $date);
+
+		$time = mktime($date[3],$date[4],0,$date[1],$date[0],$date[2]);
+		return $time;
+	}
 
 	function timeday($date)
 	{
