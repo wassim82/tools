@@ -405,6 +405,11 @@ class mdt
 		}
 	}
 	
+	function jsonb64req($r)
+	{
+		return json_decode(base64_decode($r),1);
+	}
+	
 
 }
 
