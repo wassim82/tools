@@ -99,6 +99,12 @@ class mdt
 
 		return($jour[date("w",$date)]);
 	}
+	
+	function moisfrench($mois)
+	{
+		$m = array('1' => 'Janvier','2' => 'Février','3' => 'Mars','4' => 'Avril','5' => 'Mai','6' => 'Juin','7' => 'Juillet','8' => 'Août','9' => 'Septembre','10' => 'Octobre','11' => 'Novembre','12' => 'Décembre');
+		return($m[$mois]);
+	}
 
 	function suppr_accents($str, $encoding='utf-8')
 	{
