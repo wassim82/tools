@@ -58,9 +58,9 @@ class mdt
 	}
 
 
-	function datefulltime($date)
+	function datefulltime($date,$tz = 'Europe/Brussels')
 	{
-		$dateTime = new \DateTime($date);
+		$dateTime = new \DateTime($date,new DateTimeZone($tz));
 		return $dateTime->getTimestamp();
 	}
 	
