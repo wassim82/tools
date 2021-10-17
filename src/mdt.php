@@ -25,6 +25,12 @@ class mdt
 	
 	function datetime($date)
 	{
+		if( is_numeric($date) && (int)$date == $date )
+		{
+			return $date;	
+		}
+		
+		
 		$date = str_replace("-", "/", $date);
 		$date = explode("/", $date);
 		if(!$date[2])
@@ -66,6 +72,11 @@ class mdt
 	
 	function datetimetime($date)
 	{
+		if( is_numeric($date) && (int)$date == $date )
+		{
+			return $date;	
+		}		
+		
 		$date = str_replace("-", "/", $date);
 		$date = str_replace(" ", "/", $date);
 		$date = str_replace(":", "/", $date);
