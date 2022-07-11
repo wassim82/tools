@@ -72,6 +72,25 @@ class pics
 		return $this;
 	}
 	
+	function pic_reduce($l,$h)
+	{
+		$size_im = $this->img_in_size;
+		$r = $size_im[0] / $size_im[1];
+		
+		if($l/$h > $r){
+			$new_width = $h*$r;
+			$new_height = $h;
+		} else {
+			$new_height = $l/$r;
+			$new_width = $l;
+		}
+
+		$img_out = imagecreatetruecolor($new_width, $new_height);
+		imagecopyresampled($img_out, $this->img_in, 0, 0, 0, 0, $new_width, $new_height, $size_im[0], $size_im[1]);
+		
+		$this->pic = $img_out;
+		return $this;
+	}
 	
 	function pic_crop($w,$h)
 	{
