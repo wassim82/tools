@@ -421,6 +421,23 @@ class mdt
 		return json_decode(base64_decode($r),1);
 	}
 	
+	function getphonenumber($txt)
+	{
+		$pattern = "#04[0-9]{2}([-./ ]?[0-9]{2}){3}|04[0-9]{2}([-./ ]?[0-9]{3}){2}#";
+	
+		preg_match($pattern, $txt,$num);
+
+		if(sizeof($num)>0)
+		{
+			return preg_replace('/\D/', '', $num[0]);
+		}
+		else
+		{
+			return false;
+		}
+		
+	}
+	
 
 }
 
