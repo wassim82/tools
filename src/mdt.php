@@ -423,6 +423,7 @@ class mdt
 	
 	function getphonenumber($txt)
 	{
+		$txt = str_replace("+32","0",$txt);
 		$pattern = "#04[0-9]{2}([-./ ]?[0-9]{2}){3}|04[0-9]{2}([-./ ]?[0-9]{3}){2}#";
 	
 		preg_match($pattern, $txt,$num);
