@@ -27,6 +27,10 @@ class pics
 		{
 			$this->img_in = imagecreatefrompng($pic);
 		}
+		elseif($type_img==18)
+		{
+			$img_in = imagecreatefromwebp($pic);
+		}
 
 		$this->img_in_size = array('0' => imagesx($this->img_in), '1' => imagesy($this->img_in)); // getimagesize($pic);
 		return $this;
