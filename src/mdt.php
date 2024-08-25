@@ -439,7 +439,31 @@ class mdt
 		
 	}
 	
-
+	function phoneformat($num,$pays)
+	{
+		$pays = strtoupper($pays);
+		if(trim($num)=="" || trim($num)=="0") {
+			return false;
+		}
+		
+		$phoneUtil = \libphonenumber\PhoneNumberUtil::getInstance();
+		
+		try {
+        	    $numproto = $phoneUtil->parse($num, $pays);
+        	} catch (\Exception $e) {
+			$numproto = false;
+		}
+	
+		if($numproto === false)	{
+			return $num;
+		}
+		
+		if($phoneUtil->isValidNumber($numproto)) {
+			return $phoneUtil->format($numproto, \libphonenumber\PhoneNumberFormat::E164);
+		} else {
+			return $num;
+		}
+	}
 }
 
 
