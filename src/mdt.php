@@ -23,36 +23,32 @@ class mdt
 		
 	}
 	
-	function datetime($date)
+	public static function datetime($date)
 	{
-		if( is_numeric($date) && (int)$date == $date )
+		if (is_numeric($date) && (int) $date == $date)
 		{
-			return $date;	
+			return (int) $date;
 		}
-		
-		
-		$date = str_replace("-", "/", $date);
-		$date = explode("/", $date);
-		if(!$date[2])
-		{$date[2]=date("Y",time());}
-
-		$time = mktime(0,0,0,$date[1],$date[0],$date[2]);
-		return $time;
+		$p = explode("/", str_replace("-", "/", trim((string) $date)));
+		if (count($p) < 2 || !is_numeric($p[0]) || !is_numeric($p[1]))
+		{
+			return false;
+		}
+		$y = (isset($p[2]) && is_numeric($p[2])) ? (int) $p[2] : (int) date('Y');
+		return mktime(0, 0, 0, (int) $p[1], (int) $p[0], $y);
 	}
 
-
-	function dateuktime($date)
+	public static function dateuktime($date)
 	{
-		$date = str_replace("-", "/", $date);	
-		$date = explode("/", $date);
-		if(!$date[2])
-		{$date[2]=date("Y",time());}
-
-		$time = mktime(0,0,0,$date[0],$date[1],$date[2]);
-		return $time;
-		
+		$p = explode("/", str_replace("-", "/", trim((string) $date)));
+		if (count($p) < 2 || !is_numeric($p[0]) || !is_numeric($p[1]))
+		{
+			return false;
+		}
+		$y = (isset($p[2]) && is_numeric($p[2])) ? (int) $p[2] : (int) date('Y');
+		return mktime(0, 0, 0, (int) $p[0], (int) $p[1], $y);
 	}
-	
+
 	function dateustime($date)
 	{
 		$date = str_replace("-", "/", $date);	
