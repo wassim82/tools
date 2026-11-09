@@ -438,6 +438,8 @@ class mdt
 		}
 		
 	}
+
+	
 	
 	function phoneformat($num,$pays)
 	{
@@ -464,6 +466,27 @@ class mdt
 			return $num;
 		}
 	}
+
+	public static function utf8_dec($str, $to = 'Windows-1252')
+	{
+		$str = (string) $str;
+		if ($str === '')
+		{
+			return '';
+		}
+		return mb_convert_encoding($str, $to, 'UTF-8');
+	}
+
+	public static function utf8_enc($str, $from = 'Windows-1252', $force = false)
+	{
+		$str = (string) $str;
+		if ($str === '' || (!$force && mb_check_encoding($str, 'UTF-8')))
+		{
+			return $str;
+		}
+		return mb_convert_encoding($str, 'UTF-8', $from);
+	}
+	
 }
 
 
