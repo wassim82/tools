@@ -49,14 +49,14 @@ class mdt
 		return mktime(0, 0, 0, (int) $p[0], (int) $p[1], $y);
 	}
 
-	function dateustime($date)
+	public static function dateustime($date)
 	{
-		$date = str_replace("-", "/", $date);	
-		$date = explode("/", $date);
-
-		$time = mktime(0,0,0,$date[1],$date[2],$date[0]);
-		return $time;
-		
+		$p = explode("/", str_replace("-", "/", trim((string) $date)));
+		if (count($p) < 3 || !is_numeric($p[0]) || !is_numeric($p[1]) || !is_numeric($p[2]))
+		{
+			return false;
+		}
+		return mktime(0, 0, 0, (int) $p[1], (int) $p[2], (int) $p[0]);
 	}
 
 
@@ -72,14 +72,17 @@ class mdt
 		{
 			return $date;	
 		}		
-		
+		$date = trim((string) $date);
 		$date = str_replace("-", "/", $date);
 		$date = str_replace(" ", "/", $date);
 		$date = str_replace(":", "/", $date);
 		$date = explode("/", $date);
 
-		$time = mktime($date[3],$date[4],0,$date[1],$date[0],$date[2]);
-		return $time;
+		if (count($date) < 3 || !is_numeric($date[0]) || !is_numeric($date[1]) || !is_numeric($date[2]))
+		{
+			return false;
+		}
+		return mktime((int) ($date[3] ?? 0), (int) ($date[4] ?? 0), 0, (int) $date[1], (int) $date[0], (int) $date[2]);
 	}
 
 	function timeday($date)
@@ -151,11 +154,11 @@ class mdt
 
 	function mnb($chiffre)
 	{
-		return number_format($chiffre, 2, ',', '.');
+		return number_format((float) $chiffre, 2, ',', '.');
 	}
 	function mnb2($chiffre)
 	{
-	return number_format($chiffre, 2, '.', '');
+	return number_format((float) $chiffre, 2, '.', '');
 	}
 
 	function valid_email($address)
@@ -168,6 +171,8 @@ class mdt
 		return(htmlspecialchars (stripslashes($val),ENT_QUOTES));
 	}
 	function mbStringToArray ($string) {
+		$array = array();
+		$string = (string) $string;
 		$strlen = mb_strlen($string);
 		while ($strlen) {
 			$array[] = mb_substr($string,0,1,"UTF-8");
@@ -205,7 +210,7 @@ class mdt
 		$az[] = ";";	$qw[] = "m";
 
 		$code = "";
-		$val = mbStringToArray($val);
+		$val = $this->mbStringToArray((string) $val);
 		
 		for ($i = 0; $i < sizeof($val); $i++)
 		{
@@ -247,7 +252,7 @@ class mdt
 			$d = get_object_vars($d);
 		}
 		if (is_array($d)) {
-			return array_map(__FUNCTION__, $d);
+			return array_map([$this, __FUNCTION__], $d);
 		}
 		else {
 				return $d;
@@ -298,120 +303,111 @@ class mdt
 
 		
 	
-	
 	function pic($pic)
 	{
-		
-		$type_img = exif_imagetype($pic);
-		if($type_img==2)
+		$data = @file_get_contents((string) $pic);
+		$img = ($data === false || $data === '') ? false : @imagecreatefromstring($data);
+		if ($img === false)
 		{
-			$this->img_in = imagecreatefromjpeg($pic);
-		}
-		elseif($type_img==3)
-		{
-			$this->img_in = imagecreatefrompng($pic);
+			throw new \RuntimeException("Image illisible : ".$pic);
 		}
 
-		$this->img_in_size = array('0' => imagesx($this->img_in), '1' => imagesy($this->img_in)); // getimagesize($pic);
+		// PNG/GIF en palette -> truecolor pour un redimensionnement propre
+		if (!imageistruecolor($img))
+		{
+			imagepalettetotruecolor($img);
+		}
+
+		$this->img_in = $img;
+		$this->img_in_size = array(0 => imagesx($img), 1 => imagesy($img));
+		$this->pic = null;
 		return $this;
 	}
-		
-	function pic_resize($l,$h)
+
+	// Image réduite pour tenir dans $l x $h, centrée sur fond blanc (pas d'agrandissement)
+	function pic_resize($l, $h)
 	{
-		
-		$size_im = $this->img_in_size;
-		
-		$pour = $size_im[0]/$l;
-		if(($size_im[1]/$h)>$pour)
+		$l = (int) $l;
+		$h = (int) $h;
+		if ($l < 1 || $h < 1 || !$this->img_in)
 		{
-			$pour = $size_im[1]/$h;
+			throw new \InvalidArgumentException("pic_resize : dimensions invalides ou image non chargée");
 		}
 
-		if(($h>$size_im[1])&&($l>$size_im[0]))
+		$sw = $this->img_in_size[0];
+		$sh = $this->img_in_size[1];
+
+		if ($sw < $l && $sh < $h)
 		{
-			$largeur=$size_im[0];
-			$hauteur=$size_im[1];
+			$largeur = $sw;
+			$hauteur = $sh;
 		}
 		else
 		{
-			$largeur=ceil($size_im[0]/$pour);
-			$hauteur=ceil($size_im[1]/$pour);
+			$ratio = max($sw / $l, $sh / $h);
+			$largeur = max(1, (int) ceil($sw / $ratio));
+			$hauteur = max(1, (int) ceil($sh / $ratio));
 		}
 
-		$img_out = imagecreatetruecolor($largeur, $hauteur);
-		$w = imagecolorallocate($img_out, 255, 255, 255);
-		imagefilledrectangle($img_out, 0, 0, imagesx($img_out), imagesy($img_out), $w);
-		
-		imagecopyresampled($img_out, $this->img_in, 0, 0, 0, 0, imagesx($img_out), imagesy($img_out), imagesx($this->img_in), imagesy($this->img_in));
-
-		
-		$this->pic = imagecreatetruecolor($l, $h);
-		$w = imagecolorallocate($this->pic, 255, 255, 255);
-		imagefill($this->pic, 0, 0, $w);
-
-		imagecopymerge($this->pic,$img_out,($l-$largeur)/2,($h-$hauteur)/2,0,0,$largeur,$hauteur,100);
+		$this->pic = $this->pic_canvas($l, $h);
+		imagecopyresampled(
+			$this->pic, $this->img_in,
+			intdiv($l - $largeur, 2), intdiv($h - $hauteur, 2), 0, 0,
+			$largeur, $hauteur, $sw, $sh
+		);
 		return $this;
 	}
-	
-	
-	function pic_crop($w,$h)
+
+	// Image recadrée au centre pour remplir exactement $w x $h
+	function pic_crop($w, $h)
 	{
-		$x = 0;
-		$y = 0;
-		
-		/*if($this->img_in_size[0] >= $w && $this->img_in_size[1] >= $h)
+		$w = (int) $w;
+		$h = (int) $h;
+		if ($w < 1 || $h < 1 || !$this->img_in)
 		{
-			$wc = $w / $this->img_in_size[0];
-			$hc = $h / $this->img_in_size[1];
-			$corec = min($wc, $hc);
-			
-			
-			
-			$x = ($this->img_in_size[0] - $w) / 2 ;
-			$y = ($this->img_in_size[1] - $h) / 2 ;
-			$this->pic = imagecrop($this->img_in, ['x' => $x, 'y' => $y, 'width' => $w, 'height' => $h]);
+			throw new \InvalidArgumentException("pic_crop : dimensions invalides ou image non chargée");
 		}
-		*///else if($this->img_in_size[0] < $w || $this->img_in_size[1] < $h)
-		{
-			$wc = $w / $this->img_in_size[0];
-			$hc = $h / $this->img_in_size[1];
-			
-			$corec = max($wc, $hc);
-			
-			$wc = ($this->img_in_size[0]*$corec);
-			$hc = ($this->img_in_size[1]*$corec);
-			//print $hc;
-			
-			$img_out = imagecreatetruecolor($wc, $hc);
-			imagecopyresampled($img_out, $this->img_in, 0, 0, 0, 0, $wc, $hc, $this->img_in_size[0], $this->img_in_size[1]);
-			
-			$this->pic = $img_out;
-			
-			//$this->img_in_size = array('0' => imagesx($img_out), '1' => imagesy($img_out));
-			
-			$x = ($wc - $w) / 2 ;
-			$y = ($hc - $h) / 2 ;
-			$this->pic = imagecrop($img_out, ['x' => $x, 'y' => $y, 'width' => $w, 'height' => $h]);
-		}
-		
-		
+
+		$sw = $this->img_in_size[0];
+		$sh = $this->img_in_size[1];
+
+		$ratio = max($w / $sw, $h / $sh);
+		$srcw = (int) round($w / $ratio);
+		$srch = (int) round($h / $ratio);
+		$srcx = intdiv($sw - $srcw, 2);
+		$srcy = intdiv($sh - $srch, 2);
+
+		$this->pic = $this->pic_canvas($w, $h);
+		imagecopyresampled($this->pic, $this->img_in, 0, 0, $srcx, $srcy, $w, $h, $srcw, $srch);
 		return $this;
 	}
-	
-	function pic_get($dest = 'raw')
+
+	function pic_get($dest = 'raw', $qualite = 100)
 	{
-		if($dest != 'raw')
+		if (!$this->pic)
 		{
-			Imagejpeg ($this->pic,$dest,100);
+			throw new \LogicException("pic_get : appeler pic_resize() ou pic_crop() avant");
 		}
-		else
+
+		if ($dest != 'raw')
 		{
-			ob_start();
-			Imagejpeg ($this->pic,null,100);
-			return ob_get_clean();
+			return imagejpeg($this->pic, $dest, (int) $qualite);
 		}
+
+		ob_start();
+		imagejpeg($this->pic, null, (int) $qualite);
+		return ob_get_clean();
 	}
-	
+
+	// Fond blanc : les zones transparentes des PNG ne deviennent pas noires en JPEG
+	private function pic_canvas($w, $h)
+	{
+		$img = imagecreatetruecolor($w, $h);
+		imagefill($img, 0, 0, imagecolorallocate($img, 255, 255, 255));
+		return $img;
+	}
+
+
 	function jsonb64req($r)
 	{
 		return json_decode(base64_decode($r),1);
