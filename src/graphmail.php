@@ -13,6 +13,7 @@ namespace madtec\tools;
  *
  * Lecture (droit Mail.Read ou Mail.ReadWrite sur la boîte) :
  * $msgs = $gm->messages('inbox', 'isRead eq false');
+ * $msgs = $gm->messagesAll('inbox', 'receivedDateTime ge 2024-01-01T00:00:00Z', 2000);   // avec pagination
  * $gm->markread($msgs[0]['id']);                     // Mail.ReadWrite (false en 2e paramètre = non lu)
  * $gm->move($msgs[0]['id'], 'deleteditems');         // Mail.ReadWrite
  *
@@ -173,6 +174,45 @@ class graphmail
 
 		$data = json_decode((string) $rep->getBody(), true);
 		return $data['value'] ?? array();
+	}
+
+	/**
+	 * Comme messages(), mais suit la pagination Graph (@odata.nextLink) jusqu'à $max messages.
+	 */
+	public function messagesAll($folder = 'inbox', $filter = null, $max = 2000, $from = null)
+	{
+		$from = trim((string) ($from ?: $this->from));
+		$q = array(
+			'$top'    => 100,
+			'$select' => 'id,subject,from,receivedDateTime,body,isRead',
+		);
+		if ($filter)
+		{
+			$q['$filter'] = $filter;
+		}
+
+		$out = array();
+		$url = 'https://graph.microsoft.com/v1.0/users/'.rawurlencode($from).'/mailFolders/'.rawurlencode($folder).'/messages';
+		$opt = array(
+			'headers' => array(
+				'Authorization' => 'Bearer '.$this->token(),
+				'Prefer'        => 'outlook.body-content-type="text"',
+			),
+			'query'   => $q,
+		);
+
+		while ($url && sizeof($out) < $max)
+		{
+			$rep  = $this->http(30)->get($url, $opt);
+			$data = json_decode((string) $rep->getBody(), true);
+			$out  = array_merge($out, $data['value'] ?? array());
+
+			// Le lien suivant contient déjà tous les paramètres
+			$url = $data['@odata.nextLink'] ?? null;
+			unset($opt['query']);
+		}
+
+		return array_slice($out, 0, $max);
 	}
 
 	// Marque un message comme lu (ou non lu avec $read = false)
