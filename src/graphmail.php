@@ -137,4 +137,57 @@ class graphmail
 		));
 		return true;
 	}
+
+	/**
+	 * Liste les messages d'un dossier (corps en texte brut).
+	 * @param string $folder dossier connu (inbox, deleteditems, ...) ou ID de dossier
+	 * @param string|null $filter filtre OData, ex. "isRead eq false"
+	 */
+	public function messages($folder = 'inbox', $filter = null, $top = 50, $from = null)
+	{
+		$from = trim((string) ($from ?: $this->from));
+		$q = array(
+			'$top'    => (int) $top,
+			'$select' => 'id,subject,from,receivedDateTime,body,isRead',
+		);
+		if ($filter)
+		{
+			$q['$filter'] = $filter;
+		}
+
+		$rep = $this->http(30)->get('https://graph.microsoft.com/v1.0/users/'.rawurlencode($from).'/mailFolders/'.rawurlencode($folder).'/messages', array(
+			'headers' => array(
+				'Authorization' => 'Bearer '.$this->token(),
+				'Prefer'        => 'outlook.body-content-type="text"',
+			),
+			'query'   => $q,
+		));
+
+		$data = json_decode((string) $rep->getBody(), true);
+		return $data['value'] ?? array();
+	}
+
+	// Marque un message comme lu
+	public function markread($id, $from = null)
+	{
+		$from = trim((string) ($from ?: $this->from));
+		$this->http(15)->patch('https://graph.microsoft.com/v1.0/users/'.rawurlencode($from).'/messages/'.rawurlencode($id), array(
+			'headers' => array('Authorization' => 'Bearer '.$this->token()),
+			'json'    => array('isRead' => true),
+		));
+		return true;
+	}
+
+	// Déplace un message (dossier connu comme 'deleteditems' ou ID de dossier)
+	public function move($id, $folder, $from = null)
+	{
+		$from = trim((string) ($from ?: $this->from));
+		$this->http(15)->post('https://graph.microsoft.com/v1.0/users/'.rawurlencode($from).'/messages/'.rawurlencode($id).'/move', array(
+			'headers' => array('Authorization' => 'Bearer '.$this->token()),
+			'json'    => array('destinationId' => $folder),
+		));
+		return true;
+	}
+
+	
 }
