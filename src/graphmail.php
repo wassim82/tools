@@ -9,7 +9,14 @@ namespace madtec\tools;
  * $gm->send(['a@x.be', 'b@x.be'], 'Facture', $html, [['name' => 'facture.pdf', 'content' => $pdf, 'type' => 'application/pdf']]);
  * $gm->send('client@exemple.be', 'Sujet', $html, [], [], null, false, 'rsf@domaine.be');   // autre boîte expéditrice
  *
- * Le nom affiché est TOUJOURS celui de la boîte dans Exchange (Graph ignore un nom fourni) :
+ * Image intégrée : [['name' => 'banner.jpg', 'content' => $jpg, 'type' => 'image/jpeg', 'cid' => 'feedbann']] puis <img src="cid:feedbann">
+ *
+ * Lecture (droit Mail.Read ou Mail.ReadWrite sur la boîte) :
+ * $msgs = $gm->messages('inbox', 'isRead eq false');
+ * $gm->markread($msgs[0]['id']);                     // Mail.ReadWrite (false en 2e paramètre = non lu)
+ * $gm->move($msgs[0]['id'], 'deleteditems');         // Mail.ReadWrite
+ *
+ * Le nom affiché est TOUJOURS celui de la boîte dans Exchange (Graph ignore un nom fourni)
  */
 class graphmail
 {
@@ -142,13 +149,14 @@ class graphmail
 	 * Liste les messages d'un dossier (corps en texte brut).
 	 * @param string $folder dossier connu (inbox, deleteditems, ...) ou ID de dossier
 	 * @param string|null $filter filtre OData, ex. "isRead eq false"
+	 * @return array messages Graph (id, subject, from, receivedDateTime, body['content'], ...)
 	 */
 	public function messages($folder = 'inbox', $filter = null, $top = 50, $from = null)
 	{
 		$from = trim((string) ($from ?: $this->from));
 		$q = array(
-			'$top'    => (int) $top,
-			'$select' => 'id,subject,from,receivedDateTime,body,isRead',
+			'$top'     => (int) $top,
+			'$select'  => 'id,subject,from,receivedDateTime,body,isRead',
 		);
 		if ($filter)
 		{
@@ -167,13 +175,13 @@ class graphmail
 		return $data['value'] ?? array();
 	}
 
-	// Marque un message comme lu
-	public function markread($id, $from = null)
+	// Marque un message comme lu (ou non lu avec $read = false)
+	public function markread($id, $read = true, $from = null)
 	{
 		$from = trim((string) ($from ?: $this->from));
 		$this->http(15)->patch('https://graph.microsoft.com/v1.0/users/'.rawurlencode($from).'/messages/'.rawurlencode($id), array(
 			'headers' => array('Authorization' => 'Bearer '.$this->token()),
-			'json'    => array('isRead' => true),
+			'json'    => array('isRead' => (bool) $read),
 		));
 		return true;
 	}
@@ -188,6 +196,4 @@ class graphmail
 		));
 		return true;
 	}
-
-	
 }
