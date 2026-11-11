@@ -117,12 +117,18 @@ class graphmail
 		}
 		foreach ((array) $attachments as $f)
 		{
-			$msg['attachments'][] = array(
+			$a = array(
 				'@odata.type'  => '#microsoft.graph.fileAttachment',
 				'name'         => (string) $f['name'],
 				'contentType'  => $f['type'] ?? 'application/octet-stream',
 				'contentBytes' => base64_encode((string) $f['content']),
 			);
+			if (!empty($f['cid']))
+			{
+				$a['isInline']  = true;
+				$a['contentId'] = (string) $f['cid'];
+			}
+			$msg['attachments'][] = $a;
 		}
 
 		$this->http(30)->post('https://graph.microsoft.com/v1.0/users/'.rawurlencode($from).'/sendMail', array(
