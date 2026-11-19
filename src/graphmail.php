@@ -325,7 +325,7 @@ class graphmail
 
 	/**
 	 * Liste des pièces jointes d'un message (sans leur contenu).
-	 * @return array [['id' => ..., 'name' => ..., 'contentType' => ..., 'size' => ..., 'isInline' => bool], ...]
+	 * @return array [['id' => ..., 'name' => ..., 'contentType' => ..., 'size' => ..., 'isInline' => bool, 'kind' => file|item|reference], ...]
 	 */
 	public function attachments($id, $from = null)
 	{
@@ -335,24 +335,62 @@ class graphmail
 			'query'   => array('$select' => 'id,name,contentType,size,isInline'),
 		));
 		$data = json_decode((string) $rep->getBody(), true);
-		return $data['value'] ?? array();
+
+		// Sorte de pièce jointe : file, item (e-mail joint) ou reference (lien en ligne)
+		$out = array();
+		foreach (($data['value'] ?? array()) as $a)
+		{
+			$t = $a['@odata.type'] ?? '';
+			$a['kind'] = ($t == '#microsoft.graph.itemAttachment') ? 'item' : (($t == '#microsoft.graph.referenceAttachment') ? 'reference' : 'file');
+			if ($a['kind'] == 'item' && !preg_match('/\.eml$/i', $a['name'] ?? ''))
+			{
+				$a['name'] = ($a['name'] ?? 'message').'.eml';
+			}
+			$out[] = $a;
+		}
+		return $out;
 	}
 
 	/**
-	 * Une pièce jointe avec son contenu.
-	 * @return array ['name' => ..., 'type' => ..., 'content' => données binaires] (content vide si ce n'est pas un fichier)
+	 * Une pièce jointe avec son contenu (fichier brut, ou e-mail joint au format .eml).
+	 * @return array ['name' => ..., 'type' => ..., 'content' => données binaires]
+	 *         content vide si la pièce jointe n'a pas de contenu téléchargeable (lien OneDrive, etc.)
 	 */
 	public function attachment($id, $aid, $from = null)
 	{
 		$from = trim((string) ($from ?: $this->from));
-		$rep = $this->http(60)->get('https://graph.microsoft.com/v1.0/users/'.rawurlencode($from).'/messages/'.rawurlencode($id).'/attachments/'.rawurlencode($aid), array(
-			'headers' => array('Authorization' => 'Bearer '.$this->token(), 'Prefer' => 'IdType="ImmutableId"'),
-		));
-		$a = json_decode((string) $rep->getBody(), true);
-		return array(
-			'name'    => $a['name'] ?? 'attachment',
-			'type'    => $a['contentType'] ?? 'application/octet-stream',
-			'content' => isset($a['contentBytes']) ? base64_decode($a['contentBytes']) : '',
-		);
+		$url  = 'https://graph.microsoft.com/v1.0/users/'.rawurlencode($from).'/messages/'.rawurlencode($id).'/attachments/'.rawurlencode($aid);
+		$hdr  = array('Authorization' => 'Bearer '.$this->token(), 'Prefer' => 'IdType="ImmutableId"');
+
+		// Métadonnées : nom, type de contenu, sorte de pièce jointe
+		$meta = json_decode((string) $this->http(30)->get($url, array(
+			'headers' => $hdr,
+			'query'   => array('$select' => 'name,contentType'),
+		))->getBody(), true);
+
+		$kind = $meta['@odata.type'] ?? '';
+		$name = $meta['name'] ?? 'attachment';
+		$type = $meta['contentType'] ?? 'application/octet-stream';
+
+		// Lien vers un fichier en ligne : rien à télécharger
+		if ($kind == '#microsoft.graph.referenceAttachment')
+		{
+			return array('name' => $name, 'type' => $type, 'content' => '');
+		}
+
+		// E-mail joint : contenu MIME complet, à ouvrir dans Outlook
+		if ($kind == '#microsoft.graph.itemAttachment')
+		{
+			$type = 'message/rfc822';
+			if (!preg_match('/\.eml$/i', $name))
+			{
+				$name .= '.eml';
+			}
+		}
+
+		// Contenu brut : fichier tel quel, ou e-mail au format MIME
+		$content = (string) $this->http(60)->get($url.'/$value', array('headers' => $hdr))->getBody();
+
+		return array('name' => $name, 'type' => $type, 'content' => $content);
 	}
 }
