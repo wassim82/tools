@@ -15,6 +15,7 @@ namespace madtec\tools;
  * $msgs = $gm->messages('inbox', 'isRead eq false');
  * $msgs = $gm->messagesAll('inbox', 'receivedDateTime ge 2024-01-01T00:00:00Z', 2000);   // avec pagination
  * $txt  = $gm->bodies(['id1', 'id2']);                // texte de plusieurs messages en un appel ($batch)
+ * $atts = $gm->attachments($id);  $f = $gm->attachment($id, $atts[0]['id']);   // pièces jointes
  * Les identifiants renvoyés par messagesAll() sont immuables : ils ne changent pas quand le message change de dossier.
  * $gm->markread($msgs[0]['id']);                     // Mail.ReadWrite (false en 2e paramètre = non lu)
  * $gm->move($msgs[0]['id'], 'deleteditems');         // Mail.ReadWrite
@@ -320,5 +321,38 @@ class graphmail
 	public function mailbox()
 	{
 		return $this->from;
+	}
+
+	/**
+	 * Liste des pièces jointes d'un message (sans leur contenu).
+	 * @return array [['id' => ..., 'name' => ..., 'contentType' => ..., 'size' => ..., 'isInline' => bool], ...]
+	 */
+	public function attachments($id, $from = null)
+	{
+		$from = trim((string) ($from ?: $this->from));
+		$rep = $this->http(30)->get('https://graph.microsoft.com/v1.0/users/'.rawurlencode($from).'/messages/'.rawurlencode($id).'/attachments', array(
+			'headers' => array('Authorization' => 'Bearer '.$this->token(), 'Prefer' => 'IdType="ImmutableId"'),
+			'query'   => array('$select' => 'id,name,contentType,size,isInline'),
+		));
+		$data = json_decode((string) $rep->getBody(), true);
+		return $data['value'] ?? array();
+	}
+
+	/**
+	 * Une pièce jointe avec son contenu.
+	 * @return array ['name' => ..., 'type' => ..., 'content' => données binaires] (content vide si ce n'est pas un fichier)
+	 */
+	public function attachment($id, $aid, $from = null)
+	{
+		$from = trim((string) ($from ?: $this->from));
+		$rep = $this->http(60)->get('https://graph.microsoft.com/v1.0/users/'.rawurlencode($from).'/messages/'.rawurlencode($id).'/attachments/'.rawurlencode($aid), array(
+			'headers' => array('Authorization' => 'Bearer '.$this->token(), 'Prefer' => 'IdType="ImmutableId"'),
+		));
+		$a = json_decode((string) $rep->getBody(), true);
+		return array(
+			'name'    => $a['name'] ?? 'attachment',
+			'type'    => $a['contentType'] ?? 'application/octet-stream',
+			'content' => isset($a['contentBytes']) ? base64_decode($a['contentBytes']) : '',
+		);
 	}
 }
