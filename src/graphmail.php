@@ -241,81 +241,75 @@ class graphmail
 	}
 
 	/**
-	 * Texte (brut) de plusieurs messages, par paquets de 20 via $batch.
+	 * Texte (brut) de plusieurs messages, via $batch (paquets de 20 en parallèle).
 	 * @param array $ids identifiants de messages (immuables de préférence)
 	 * @return array id => texte du message (les messages introuvables sont absents)
 	 */
 	public function bodies($ids, $from = null)
 	{
 		$from = trim((string) ($from ?: $this->from));
-		$out = array();
-
-		foreach (array_chunk(array_values(array_unique($ids)), 20) as $chunk)
+		$urls = array();
+		foreach (array_unique($ids) as $id)
 		{
-			$req = array();
-			foreach ($chunk as $k => $id)
-			{
-				$req[] = array(
-					'id'      => (string) $k,
-					'method'  => 'GET',
-					'url'     => '/users/'.rawurlencode($from).'/messages/'.rawurlencode($id).'?$select=body',
-					'headers' => array('Prefer' => 'outlook.body-content-type="text", IdType="ImmutableId"'),
-				);
-			}
-
-			$rep  = $this->http(60)->post('https://graph.microsoft.com/v1.0/$batch', array(
-				'headers' => array('Authorization' => 'Bearer '.$this->token()),
-				'json'    => array('requests' => $req),
-			));
-			$data = json_decode((string) $rep->getBody(), true);
-
-			foreach (($data['responses'] ?? array()) as $r)
-			{
-				if (($r['status'] ?? 0) == 200 && isset($chunk[(int) $r['id']]))
-				{
-					$out[$chunk[(int) $r['id']]] = $r['body']['body']['content'] ?? '';
-				}
-			}
+			$urls[$id] = '/users/'.rawurlencode($from).'/messages/'.rawurlencode($id).'?$select=body';
 		}
 
+		$out = array();
+		foreach ($this->batchGet($urls, 'outlook.body-content-type="text", IdType="ImmutableId"') as $id => $b)
+		{
+			$out[$id] = $b['body']['content'] ?? '';
+		}
 		return $out;
 	}
 
 	/**
-	 * Plusieurs requêtes GET en un appel ($batch, paquets de 20).
+	 * Plusieurs requêtes GET via $batch (paquets de 20, envoyés en parallèle).
 	 * @param array $urls clé => URL relative à https://graph.microsoft.com/v1.0 (ex. "/users/x/messages?$select=id")
 	 * @return array clé => réponse décodée (seules les réponses HTTP 200 sont renvoyées)
 	 */
-	public function batchGet($urls)
+	public function batchGet($urls, $prefer = 'IdType="ImmutableId"')
 	{
 		$out = array();
-		foreach (array_chunk($urls, 20, true) as $chunk)
+		$client = $this->http(60);
+		$token = $this->token();
+		$promises = array();
+		$maps = array();
+
+		// Un appel $batch par paquet de 20, tous envoyés en même temps
+		foreach (array_chunk($urls, 20, true) as $c => $chunk)
 		{
 			$req = array();
-			$map = array();
 			foreach ($chunk as $key => $url)
 			{
 				$n = (string) sizeof($req);
-				$map[$n] = $key;
+				$maps[$c][$n] = $key;
 				$req[] = array(
 					'id'      => $n,
 					'method'  => 'GET',
 					'url'     => $url,
-					'headers' => array('Prefer' => 'IdType="ImmutableId"'),
+					'headers' => array('Prefer' => $prefer),
 				);
 			}
 
-			$rep  = $this->http(60)->post('https://graph.microsoft.com/v1.0/$batch', array(
-				'headers' => array('Authorization' => 'Bearer '.$this->token()),
+			$promises[$c] = $client->postAsync('https://graph.microsoft.com/v1.0/$batch', array(
+				'headers' => array('Authorization' => 'Bearer '.$token),
 				'json'    => array('requests' => $req),
 			));
-			$data = json_decode((string) $rep->getBody(), true);
+		}
 
+		// Attend toutes les réponses ; un paquet en échec est ignoré, les autres sont gardés
+		foreach (\GuzzleHttp\Promise\Utils::settle($promises)->wait() as $c => $res)
+		{
+			if ($res['state'] !== 'fulfilled')
+			{
+				continue;
+			}
+			$data = json_decode((string) $res['value']->getBody(), true);
 			foreach (($data['responses'] ?? array()) as $r)
 			{
-				if (($r['status'] ?? 0) == 200 && isset($map[$r['id']]))
+				if (($r['status'] ?? 0) == 200 && isset($maps[$c][$r['id']]))
 				{
-					$out[$map[$r['id']]] = $r['body'] ?? array();
+					$out[$maps[$c][$r['id']]] = $r['body'] ?? array();
 				}
 			}
 		}
