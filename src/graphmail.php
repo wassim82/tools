@@ -14,6 +14,8 @@ namespace madtec\tools;
  * Lecture (droit Mail.Read ou Mail.ReadWrite sur la boîte) :
  * $msgs = $gm->messages('inbox', 'isRead eq false');
  * $msgs = $gm->messagesAll('inbox', 'receivedDateTime ge 2024-01-01T00:00:00Z', 2000);   // avec pagination
+ * $txt  = $gm->bodies(['id1', 'id2']);                // texte de plusieurs messages en un appel ($batch)
+ * Les identifiants renvoyés par messagesAll() sont immuables : ils ne changent pas quand le message change de dossier.
  * $gm->markread($msgs[0]['id']);                     // Mail.ReadWrite (false en 2e paramètre = non lu)
  * $gm->move($msgs[0]['id'], 'deleteditems');         // Mail.ReadWrite
  *
@@ -184,7 +186,7 @@ class graphmail
 	{
 		$from = trim((string) ($from ?: $this->from));
 		$q = array(
-			'$top'    => 100,
+			'$top'    => 250,
 			'$select' => $select ?: 'id,subject,from,toRecipients,conversationId,receivedDateTime,sentDateTime,body,isRead',
 		);
 		if ($filter)
@@ -197,7 +199,7 @@ class graphmail
 		$opt = array(
 			'headers' => array(
 				'Authorization' => 'Bearer '.$this->token(),
-				'Prefer'        => 'outlook.body-content-type="text"',
+				'Prefer'        => 'outlook.body-content-type="text", IdType="ImmutableId"',
 			),
 			'query'   => $q,
 		);
@@ -221,7 +223,7 @@ class graphmail
 	{
 		$from = trim((string) ($from ?: $this->from));
 		$this->http(15)->patch('https://graph.microsoft.com/v1.0/users/'.rawurlencode($from).'/messages/'.rawurlencode($id), array(
-			'headers' => array('Authorization' => 'Bearer '.$this->token()),
+			'headers' => array('Authorization' => 'Bearer '.$this->token(), 'Prefer' => 'IdType="ImmutableId"'),
 			'json'    => array('isRead' => (bool) $read),
 		));
 		return true;
@@ -232,9 +234,50 @@ class graphmail
 	{
 		$from = trim((string) ($from ?: $this->from));
 		$this->http(15)->post('https://graph.microsoft.com/v1.0/users/'.rawurlencode($from).'/messages/'.rawurlencode($id).'/move', array(
-			'headers' => array('Authorization' => 'Bearer '.$this->token()),
+			'headers' => array('Authorization' => 'Bearer '.$this->token(), 'Prefer' => 'IdType="ImmutableId"'),
 			'json'    => array('destinationId' => $folder),
 		));
 		return true;
+	}
+
+	/**
+	 * Texte (brut) de plusieurs messages, par paquets de 20 via $batch.
+	 * @param array $ids identifiants de messages (immuables de préférence)
+	 * @return array id => texte du message (les messages introuvables sont absents)
+	 */
+	public function bodies($ids, $from = null)
+	{
+		$from = trim((string) ($from ?: $this->from));
+		$out = array();
+
+		foreach (array_chunk(array_values(array_unique($ids)), 20) as $chunk)
+		{
+			$req = array();
+			foreach ($chunk as $k => $id)
+			{
+				$req[] = array(
+					'id'      => (string) $k,
+					'method'  => 'GET',
+					'url'     => '/users/'.rawurlencode($from).'/messages/'.rawurlencode($id).'?$select=body',
+					'headers' => array('Prefer' => 'outlook.body-content-type="text", IdType="ImmutableId"'),
+				);
+			}
+
+			$rep  = $this->http(60)->post('https://graph.microsoft.com/v1.0/$batch', array(
+				'headers' => array('Authorization' => 'Bearer '.$this->token()),
+				'json'    => array('requests' => $req),
+			));
+			$data = json_decode((string) $rep->getBody(), true);
+
+			foreach (($data['responses'] ?? array()) as $r)
+			{
+				if (($r['status'] ?? 0) == 200 && isset($chunk[(int) $r['id']]))
+				{
+					$out[$chunk[(int) $r['id']]] = $r['body']['body']['content'] ?? '';
+				}
+			}
+		}
+
+		return $out;
 	}
 }
