@@ -14,7 +14,7 @@ class mdt
 
 	}
 	
-	function getgsmnumber($txt)
+	public static function getgsmnumber($txt)
 	{
 		$pattern = "#04[0-9]{2}([-./ ]?[0-9]{2}){3}|04[0-9]{2}([-./ ]?[0-9]{3}){2}#";
 		
@@ -60,13 +60,13 @@ class mdt
 	}
 
 
-	function datefulltime($date,$tz = 'Europe/Brussels')
+	public static function datefulltime($date,$tz = 'Europe/Brussels')
 	{
 		$dateTime = new \DateTime($date,new \DateTimeZone($tz));
 		return $dateTime->getTimestamp();
 	}
 	
-	function datetimetime($date)
+	public static function datetimetime($date)
 	{
 		if( is_numeric($date) && (int)$date == $date )
 		{
@@ -85,7 +85,7 @@ class mdt
 		return mktime((int) ($date[3] ?? 0), (int) ($date[4] ?? 0), 0, (int) $date[1], (int) $date[0], (int) $date[2]);
 	}
 
-	function timeday($date)
+	public static function timeday($date)
 	{
 		$d = date("d",$date);
 		$m = date("m",$date);
@@ -96,27 +96,25 @@ class mdt
 		return($time);
 	}
 
-	function jourfr($date)
+	// Nom du jour en français : accepte un numéro de jour 0-6 (0 = dimanche) ou un timestamp
+	public static function jourfr($date)
 	{
-		$jour = array();
-		$jour[0]= "Dimanche";
-		$jour[1]= "Lundi";
-		$jour[2]= "Mardi";
-		$jour[3]= "Mercredi";
-		$jour[4]= "Jeudi";
-		$jour[5]= "Vendredi";
-		$jour[6]= "Samedi";
+		$jour = array("Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi");
 
-		return($jour[date("w",$date)]);
+		if (is_numeric($date) && (int) $date >= 0 && (int) $date <= 6)
+		{
+			return $jour[(int) $date];
+		}
+		return $jour[(int) date("w", (int) $date)];
 	}
 	
-	function moisfrench($mois)
+	public static function moisfrench($mois)
 	{
 		$m = array('1' => 'Janvier','2' => 'Février','3' => 'Mars','4' => 'Avril','5' => 'Mai','6' => 'Juin','7' => 'Juillet','8' => 'Août','9' => 'Septembre','10' => 'Octobre','11' => 'Novembre','12' => 'Décembre');
 		return($m[$mois]);
 	}
 
-	function suppr_accents($str, $encoding='utf-8')
+	public static function suppr_accents($str, $encoding='utf-8')
 	{
 		$str = htmlentities($str, ENT_NOQUOTES, $encoding);
 		$str = preg_replace('#&([A-za-z])(?:acute|grave|cedil|circ|orn|ring|slash|th|tilde|uml);#', '\1', $str);
@@ -126,7 +124,7 @@ class mdt
 		return $str;
 	}
 
-	function to_utf8( $string ) {
+	public static function to_utf8( $string ) {
 		// From http://w3.org/International/questions/qa-forms-utf-8.html
 		if ( preg_match('%^(?:
 		  [\x09\x0A\x0D\x20-\x7E]            # ASCII
@@ -144,7 +142,7 @@ class mdt
 		}
 	} 
 
-	function cc($txt,$txt2)
+	public static function cc($txt,$txt2)
 	{
 		if($txt)
 		{
@@ -152,25 +150,31 @@ class mdt
 		}
 	}
 
-	function mnb($chiffre)
+	public static function mnb($chiffre)
 	{
 		return number_format((float) $chiffre, 2, ',', '.');
 	}
-	function mnb2($chiffre)
+	// Arrondi à 2 décimales (montants)
+	public static function rnb($chiffre)
+	{
+		return round((float) $chiffre * 100) / 100;
+	}
+
+	public static function mnb2($chiffre)
 	{
 	return number_format((float) $chiffre, 2, '.', '');
 	}
 
-	function valid_email($address)
+	public static function valid_email($address)
 	{
 		return ( ! preg_match("/^([a-z0-9\+_\-]+)(\.[a-z0-9\+_\-]+)*@([a-z0-9\-]+\.)+[a-z]{2,6}$/ix", $address)) ? FALSE : TRUE;
 	}
 
-	function formquote($val)
+	public static function formquote($val)
 	{
 		return(htmlspecialchars (stripslashes($val),ENT_QUOTES));
 	}
-	function mbStringToArray ($string) {
+	public static function mbStringToArray ($string) {
 		$array = array();
 		$string = (string) $string;
 		$strlen = mb_strlen($string);
@@ -181,7 +185,7 @@ class mdt
 		}
 		return $array;
 	} 
-	function qrtoaz($val)
+	public static function qrtoaz($val)
 	{
 		$az = array();$qw = array();
 		$az[] = "0";	$qw[] = "à";
@@ -210,7 +214,7 @@ class mdt
 		$az[] = ";";	$qw[] = "m";
 
 		$code = "";
-		$val = $this->mbStringToArray((string) $val);
+		$val = self::mbStringToArray((string) $val);
 		
 		for ($i = 0; $i < sizeof($val); $i++)
 		{
@@ -233,7 +237,7 @@ class mdt
 		return $code;
 	}
 		
-	function selected($var1, $var2)
+	public static function selected($var1, $var2)
 	{
 		if(($var1==$var2)&&($var2!=''))
 		{
@@ -245,21 +249,21 @@ class mdt
 		}
 	}
 
-	function objectToArray($d)
+	public static function objectToArray($d)
 	{
 		if (is_object($d))
 		{
 			$d = get_object_vars($d);
 		}
 		if (is_array($d)) {
-			return array_map([$this, __FUNCTION__], $d);
+			return array_map([self::class, __FUNCTION__], $d);
 		}
 		else {
 				return $d;
 			}
 	}
 
-	function pagination($total,$pages,$page,$cases,$callback)
+	public static function pagination($total,$pages,$page,$cases,$callback)
 	{
 
 		$html = "&nbsp;";
@@ -408,12 +412,12 @@ class mdt
 	}
 
 
-	function jsonb64req($r)
+	public static function jsonb64req($r)
 	{
 		return json_decode(base64_decode($r),1);
 	}
 	
-	function getphonenumber($txt)
+	public static function getphonenumber($txt)
 	{
 		$txt = str_replace("+32","0",$txt);
 		$pattern = "#04[0-9]{2}([-./ ]?[0-9]{2}){3}|04[0-9]{2}([-./ ]?[0-9]{3}){2}#";
@@ -433,7 +437,7 @@ class mdt
 
 	
 	
-	function phoneformat($num,$pays)
+	public static function phoneformat($num,$pays)
 	{
 		$pays = strtoupper($pays);
 		if(trim($num)=="" || trim($num)=="0") {
